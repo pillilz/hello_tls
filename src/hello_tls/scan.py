@@ -7,6 +7,7 @@ from urllib.parse import urlparse
 
 import dataclasses
 from datetime import datetime, timezone
+import time
 from .protocol import ClientHello, ScanError, make_client_hello, parse_server_hello, ServerAlertError, BadServerResponse, ServerHello, logger
 from .names_and_numbers import AlertDescription, CipherSuite, Group, Protocol, CompressionMethod
 
@@ -38,6 +39,7 @@ class ConnectionSettings:
     proxy: Optional[str] = None
     timeout_in_seconds: Optional[float] = DEFAULT_TIMEOUT
     date: datetime = dataclasses.field(default_factory=lambda: datetime.now(tz=timezone.utc).replace(microsecond=0))
+    duration: Optional[float] = None
 
 def make_socket(settings: ConnectionSettings) -> socket.socket:
     """
@@ -283,6 +285,7 @@ def scan_server(
 
     Runs scans in parallel to speed up the process, with up to `max_workers` threads connecting at the same time.
     """
+    t0 = time.time()
     if isinstance(connection_settings, str):
         connection_settings = ConnectionSettings(*parse_target(connection_settings))
         
@@ -357,6 +360,8 @@ def scan_server(
         # If the server accepted different cipher suites, then we know it respects the client order.
         if protocol_result.cipher_suites and protocol_result.groups:
             protocol_result.has_cipher_suite_order = protocol_result._cipher_suite_hellos[0].cipher_suite == protocol_result._group_hellos[0].cipher_suite
+
+    result.connection.duration = time.time() - t0
 
     return result
 
