@@ -21,6 +21,10 @@ class BadServerResponse(ScanError):
     """ Error for server responses that can't be parsed. """
     pass
 
+class ServerClosedConnection(ScanError):
+    """ Server closed connection without TLS alert """
+    pass
+
 @dataclass
 class ServerHello:
     version: Protocol
@@ -56,7 +60,14 @@ def parse_server_hello(packets: Iterable[bytes]) -> ServerHello:
     """
     read_next, current_position = _make_stream_parser(packets)
     
-    record_type = RecordType(read_next(1))
+    # Detect if server stops to communicate without sending a TLS alert
+    try:
+        record_type = RecordType(read_next(1))
+    except BadServerResponse:
+        raise ServerClosedConnection()
+    except ConnectionResetError:
+        raise ServerClosedConnection()
+
     legacy_record_version = read_next(2)
     record_length = _bytes_to_int(read_next(2))
     record_end = current_position() + record_length

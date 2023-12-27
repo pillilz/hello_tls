@@ -8,7 +8,7 @@ from urllib.parse import urlparse
 import dataclasses
 from datetime import datetime, timezone
 import time
-from .protocol import ClientHello, ScanError, make_client_hello, parse_server_hello, ServerAlertError, BadServerResponse, ServerHello, logger
+from .protocol import ClientHello, ScanError, make_client_hello, parse_server_hello, ServerAlertError, BadServerResponse, ServerClosedConnection, ServerHello, logger
 from .names_and_numbers import AlertDescription, CipherSuite, Group, Protocol, CompressionMethod
 
 # Default number of workers/threads/concurrent connections to use.
@@ -116,6 +116,8 @@ def _iterate_server_option(connection_settings: ConnectionSettings, client_hello
             if error.description in [AlertDescription.protocol_version, AlertDescription.handshake_failure, AlertDescription.close_notify]:
                 break
             raise
+        except ServerClosedConnection:
+            break
 
         accepted_option = getattr(server_hello, response_option)
         if accepted_option is None or accepted_option not in options_to_test:
